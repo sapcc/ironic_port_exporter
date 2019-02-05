@@ -61,7 +61,8 @@ def query_ironic_vs_neutron_ports():
     try:
         neutron_cli = config.get_neutron_client()
         ironic_cli = config.get_ironic_client()
-    except IOError as (errno, strerror):
+    except IOError as err:
+        errno, strerror = err.args
         LOG.error("I/O error({0}): {1}".format(errno, strerror))
         return
  
