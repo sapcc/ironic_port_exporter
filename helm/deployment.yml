@@ -6,13 +6,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ipmi-sd
-      type: service-discovery
+      app: ironic_port_exporter
+      type: exporter
   template:
     metadata:
       labels:
-        app: ipmi-sd
-        type: service-discovery
+        app: ironic_port_exporter
+        type: exporter
     spec:
       containers:
       - name: ipmi-sd

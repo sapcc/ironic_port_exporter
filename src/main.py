@@ -5,15 +5,13 @@ import os
 from keystoneauth1 import identity
 from keystoneauth1 import session
 from neutronclient.v2_0 import client as neutron_client
+from prometheus_client import start_http_server, Info, CollectorRegistry, Gauge
 from ironicclient import client
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
 
 import config
 
- 
-from prometheus_client import start_http_server, Info, CollectorRegistry, Gauge
- 
 PORT_NUMBER = os.environ.get("PORT_NUMBER", 9456)
 LOG = logging.getLogger(__name__)
 PortsGauge = None
@@ -48,20 +46,24 @@ def get_available_ironic_nodes_uuid(ironic):
     """
  
     """
-    LOG.info("Quering Ironic for all non deployed (available) Ironic Nodes") 
+    LOG.debug("Quering Ironic for all non deployed (available) Ironic Nodes") 
     available_nodes = ironic.node.list(maintenance=False,
                                        provision_state='available',
                                        fields=['uuid'])
-    LOG.info("Found %d available nodes" % len(available_nodes))
+    LOG.debug("Found %d available nodes" % len(available_nodes))
     return available_nodes
  
- 
+
 def query_ironic_vs_neutron_ports():
     """
     Do query in Ironic and after in Neutron to find leftover ports
     """
-    neutron_cli = config.get_neutron_client()
-    ironic_cli = config.get_ironic_client()
+    try:
+        neutron_cli = config.get_neutron_client()
+        ironic_cli = config.get_ironic_client()
+    except IOError as (errno, strerror):
+        LOG.error("I/O error({0}): {1}".format(errno, strerror))
+        return
  
     all_nodes = get_available_ironic_nodes_uuid(ironic_cli)
     leftover_neutron_ports = {}
@@ -79,18 +81,18 @@ def query_ironic_vs_neutron_ports():
             neutron_ports = neutron_cli.list_ports(mac_address=port.address)['ports']
 
             if len(neutron_ports) == 1:
-                LOG.debug("The ID of the leftover port is %s" % neutron_ports[0]['id'])
+                LOG.info("node_uuid: %s: leftover port_id: %s" % node.uuid, neutron_ports[0]['id'])
                 leftover_neutron_ports[node.uuid].append(neutron_ports[0]['id'])
  
             elif len(neutron_ports) > 1:
                 LOG.error("There is more than on Neutron port with mac %s" % port.address)
                 for leftover_port in neutron_ports:
-                    LOG.info("The ID of the leftover port is %s" % leftover_port['id'])
+                    LOG.info("node_uuid: %s: leftover port_id: %s" % node.uuid, leftover_port['id'])
                     leftover_neutron_ports[node.uuid].append(leftover_port['id'])
             
         PortsGauge.labels(node.uuid).set(len(leftover_neutron_ports[node.uuid]))
  
- 
+
 if __name__ == "__main__":
     """
     Main function
