@@ -12,7 +12,7 @@ from kubernetes import config as k8s_config
 
 import config
 
-PORT_NUMBER = os.environ.get("PORT_NUMBER", 9456)
+PORT_NUMBER = os.environ.get("PORT_NUMBER", 9191)
 LOG = logging.getLogger(__name__)
 PortsGauge = None
 
@@ -49,7 +49,7 @@ def get_available_ironic_nodes_uuid(ironic):
     LOG.debug("Quering Ironic for all non deployed (available) Ironic Nodes") 
     available_nodes = ironic.node.list(maintenance=False,
                                        provision_state='available',
-                                       fields=['uuid'])
+                                       fields=['uuid', 'provision_state', 'maintenance'])
     LOG.debug("Found %d available nodes" % len(available_nodes))
     return available_nodes
  
@@ -58,6 +58,7 @@ def query_ironic_vs_neutron_ports():
     """
     Do query in Ironic and after in Neutron to find leftover ports
     """
+
     try:
         neutron_cli = config.get_neutron_client()
         ironic_cli = config.get_ironic_client()
@@ -104,7 +105,7 @@ if __name__ == "__main__":
  
     # Set a server to export (expose to prometheus) the data (in a thread)
     try:
-        start_http_server(PORT_NUMBER)
+        start_http_server(PORT_NUMBER, addr='0.0.0.0')
         while True:
             query_ironic_vs_neutron_ports()
             sleep(15)

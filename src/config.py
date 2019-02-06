@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
@@ -55,6 +56,11 @@ def get_client_auth():
         parser = configparser.ConfigParser()
         parser.read_string(cfg.data["neutron.conf"])
         return parser["keystone_authtoken"]
-    except IOError:
-         LOG.error("Cannot load neutron configmap")
+    except k8s_client.rest.ApiException as err:
+        if err.status == 404:
+            LOG.error("Neutron-etc configmap not found!")
+            sys.exit(1)
+        else:
+            LOG.error("Cannot load neutron configmap: {0}".format(err))
+            sys.exit(1)
 
