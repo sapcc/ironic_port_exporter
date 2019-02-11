@@ -7,7 +7,7 @@ from kubernetes import config as k8s_config
 from keystoneauth1 import identity
 from keystoneauth1 import session
 from neutronclient.v2_0 import client as neutron_client
-from ironicclient import client
+from ironicclient import client as ironic_client
 from backports import configparser
 
 LOG = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ def get_neutron_client():
                              user_domain_name=auth_parser["user_domain_name"])
 
     sess = session.Session(auth=auth)
+    sess.verify
  
     return neutron_client.Client(session=sess)
 
@@ -39,28 +40,21 @@ def get_ironic_client():
     auth_parser = get_client_auth()
 
     kwargs = {'os_username': os.environ.get("OS_IRONIC_USERNAME", "ipmi_exporter"),
-              'os_password': os.environ.get("OS_IRONIC_PASSWORD", ""),
+              'os_password': os.environ.get("OS_IRONIC_PASSWORD", "LohePayaBami7#"),
               'os_auth_url': auth_parser['www_authenticate_uri'],
               'os_project_name': os.environ.get("OS_PROJECT_NAME", "master"),
               'os_user_domain_name': os.environ.get("OS_USER_DOMAIN_NAME", "Default"),
               'os_project_domain_name': os.environ.get("OS_PROJECT_DOMAIN_NAME", "ccadmin")}
+
  
-    return client.get_client(1, **kwargs)
+    return ironic_client.get_client(1, **kwargs)
 
 
 def get_client_auth():
     v1 = k8s_client.CoreV1Api()
+    cfg = v1.read_namespaced_config_map("neutron-etc", "monsoon3")
+    parser = configparser.ConfigParser()
+    parser.read_string(cfg.data["neutron.conf"])
+    return parser["keystone_authtoken"]
 
-    try:
-        cfg = v1.read_namespaced_config_map("neutron-etc", "monsoon3")
-        parser = configparser.ConfigParser()
-        parser.read_string(cfg.data["neutron.conf"])
-        return parser["keystone_authtoken"]
-    except k8s_client.rest.ApiException as err:
-        if err.status == 404:
-            LOG.error("Neutron-etc configmap not found!")
-            sys.exit(1)
-        else:
-            LOG.error("Cannot load neutron configmap: {0}".format(err))
-            sys.exit(1)
 

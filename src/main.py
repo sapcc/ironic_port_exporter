@@ -19,7 +19,7 @@ PortsGauge = None
 
 def setup_logging():
     logging.basicConfig(format='%(asctime)-15s %(process)d %(levelname)s %(filename)s:%(lineno)d %(message)s',
-                        level=os.environ.get("LOGLEVEL", "INFO"))
+                        level=os.environ.get("LOGLEVEL", "DEBUG"))
  
 
 def setup_k8s():
@@ -54,19 +54,11 @@ def get_available_ironic_nodes_uuid(ironic):
     return available_nodes
  
 
-def query_ironic_vs_neutron_ports():
+def query_ironic_vs_neutron_ports(neutron_cli, ironic_cli):
     """
     Do query in Ironic and after in Neutron to find leftover ports
     """
 
-    try:
-        neutron_cli = config.get_neutron_client()
-        ironic_cli = config.get_ironic_client()
-    except IOError as err:
-        errno, strerror = err.args
-        LOG.error("I/O error({0}): {1}".format(errno, strerror))
-        return
- 
     all_nodes = get_available_ironic_nodes_uuid(ironic_cli)
     leftover_neutron_ports = {}
 
@@ -102,12 +94,23 @@ if __name__ == "__main__":
     setup_logging()
     setup_k8s()
     setup_prometheus()
- 
+
+    try:
+        neutron_cli = config.get_neutron_client()
+        ironic_cli = config.get_ironic_client()
+    except k8s_client.rest.ApiException as err:
+        if err.status == 404:
+            LOG.error("Neutron-etc configmap not found!")
+            sys.exit(1)
+        else:
+            LOG.error("Cannot load neutron configmap: {0}".format(err))
+            sys.exit(1)
+
     # Set a server to export (expose to prometheus) the data (in a thread)
     try:
-        start_http_server(PORT_NUMBER, addr='0.0.0.0')
+        start_http_server(int(PORT_NUMBER), addr='0.0.0.0')
         while True:
-            query_ironic_vs_neutron_ports()
-            sleep(15)
+            query_ironic_vs_neutron_ports(neutron_cli, ironic_cli)
+            sleep(50)
     except KeyboardInterrupt:
         exit(0)
