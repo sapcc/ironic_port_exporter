@@ -19,7 +19,7 @@ PortsGauge = None
 
 def setup_logging():
     logging.basicConfig(format='%(asctime)-15s %(process)d %(levelname)s %(filename)s:%(lineno)d %(message)s',
-                        level=os.environ.get("LOGLEVEL", "DEBUG"))
+                        level=os.environ.get("LOGLEVEL", "INFO"))
  
 
 def setup_k8s():
@@ -66,22 +66,22 @@ def query_ironic_vs_neutron_ports(neutron_cli, ironic_cli):
         return
 
     for node in all_nodes:
-        LOG.debug("Ironic Node uuid is %s" % node.uuid)
+        LOG.debug("Ironic Node uuid is {0}".format(node.uuid))
         all_node_ports = ironic_cli.port.list(node=node.uuid)
         leftover_neutron_ports[node.uuid] = []
 
         for port in all_node_ports:
-            LOG.debug("Port MAC address is %s" % port.address)
+            LOG.debug("Port MAC address is {}".format(port.address))
             neutron_ports = neutron_cli.list_ports(mac_address=port.address)['ports']
 
             if len(neutron_ports) == 1:
-                LOG.info("node_uuid: %s: leftover port_id: %s" % node.uuid, neutron_ports[0]['id'])
+                LOG.info("node_uuid: {0}: leftover port_id: {1}".format(node.uuid, neutron_ports[0]['id']))
                 leftover_neutron_ports[node.uuid].append(neutron_ports[0]['id'])
  
             elif len(neutron_ports) > 1:
-                LOG.error("There is more than on Neutron port with mac %s" % port.address)
+                LOG.error("There is more than on Neutron port with mac {0}".format(port.address))
                 for leftover_port in neutron_ports:
-                    LOG.info("node_uuid: %s: leftover port_id: %s" % node.uuid, leftover_port['id'])
+                    LOG.info("node_uuid: {0}: leftover port_id: {1}".format(node.uuid, leftover_port['id']))
                     leftover_neutron_ports[node.uuid].append(leftover_port['id'])
             
         PortsGauge.labels(node.uuid).set(len(leftover_neutron_ports[node.uuid]))
