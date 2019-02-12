@@ -94,7 +94,7 @@ def query_ironic_vs_neutron_ports(neutron_cli, ironic_cli):
         
         try:
             PortsGauge.labels(node.uuid, node.provision_state).set(len(leftover_neutron_ports[node.uuid]))
-         except KeyError as err:
+        except KeyError as err:
             LOG.error("Cannot set Ironic Node label err: {0}".format(err))
 
 if __name__ == "__main__":
