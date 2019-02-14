@@ -21,7 +21,7 @@ PortsGauge = None
 def setup_logging():
     logging.basicConfig(format='%(asctime)-15s %(process)d %(levelname)s %(filename)s:%(lineno)d %(message)s',
                         level=os.environ.get("LOGLEVEL", "INFO"))
- 
+
 
 def setup_k8s():
     try:
@@ -40,7 +40,9 @@ def setup_prometheus():
     registry = CollectorRegistry()
     registry.register(port_info)
     global PortsGauge  
-    PortsGauge = Gauge('openstack_ironic_leftover_ports', 'Neutron ports corresponding to Ironic node ports that were not removed', ['node_uuid', 'provision_state'])
+    PortsGauge = Gauge('openstack_ironic_leftover_ports', 'Neutron ports corresponding to Ironic node ports that were not removed', ['node_uuid'])
+    global CallbackGauge  
+    CallbackGauge = Gauge('openstack_ironic_callback_state', 'Ironic node in wait call-back state', ['node_uuid'])
 
  
 def get_available_ironic_nodes_uuid(ironic):
@@ -52,50 +54,63 @@ def get_available_ironic_nodes_uuid(ironic):
                                        fields=['uuid', 'provision_state', 'maintenance'])
     LOG.debug("Found %d available nodes" % len(available_nodes))
     return available_nodes
- 
 
-def query_ironic_vs_neutron_ports(neutron_cli, ironic_cli):
+
+def set_leftover_ports(node, neutron_cli, ironic_cli):
+    leftover_neutron_ports = {}
+    if node.provision_state != 'available':
+        LOG.debug("Remove Ironic Node uuid {0}".format(node.uuid))
+        try:
+            PortsGauge.labels(node.uuid).set(0)
+        except KeyError as err:
+            LOG.error("Cannot set Ironic Node label err: {0}".format(err))
+        return
+
+    all_node_ports = ironic_cli.port.list(node=node.uuid)
+    leftover_neutron_ports[node.uuid] = []
+
+    for port in all_node_ports:
+        LOG.debug("Port MAC address is {}".format(port.address))
+        neutron_ports = neutron_cli.list_ports(mac_address=port.address)['ports']
+
+        if len(neutron_ports) == 1:
+            LOG.info("node_uuid: {0}: leftover port_id: {1}".format(node.uuid, neutron_ports[0]['id']))
+            leftover_neutron_ports[node.uuid].append(neutron_ports[0]['id'])
+
+        elif len(neutron_ports) > 1:
+            LOG.error("There is more than on Neutron port with mac {0}".format(port.address))
+            for leftover_port in neutron_ports:
+                LOG.info("node_uuid: {0}: leftover port_id: {1}".format(node.uuid, leftover_port['id']))
+                leftover_neutron_ports[node.uuid].append(leftover_port['id'])
+    
+    try:
+        PortsGauge.labels(node.uuid).set(len(leftover_neutron_ports[node.uuid]))
+    except KeyError as err:
+        LOG.error("Cannot set Ironic Node label err: {0}".format(err))
+
+
+def set_wait_callback_state(node):
+    if node.provision_state == 'wait call-back':
+        CallbackGauge.labels(node.uuid).set(1)
+    else:
+        CallbackGauge.labels(node.uuid).set(0)
+
+
+def start_ironic_nodes_query(neutron_cli, ironic_cli):
     """
     Do query in Ironic and after in Neutron to find leftover ports
     """
 
     all_nodes = get_available_ironic_nodes_uuid(ironic_cli)
-    leftover_neutron_ports = {}
 
     if len(all_nodes) == 0:
         return
 
     for node in all_nodes:
-        LOG.info("Ironic Node uuid is {0}".format(node.uuid))
-        if node.provision_state != 'available':
-            LOG.debug("Remove Ironic Node uuid {0}".format(node.provision_state))
-            try:
-                PortsGauge.labels(node.uuid, node.provision_state).set(0)
-            except KeyError as err:
-                LOG.error("Cannot set Ironic Node label err: {0}".format(err))
-            continue
+        LOG.debug("Ironic Node uuid is {0}".format(node.uuid))
+        set_leftover_ports(node, neutron_cli, ironic_cli)
+        set_wait_callback_state(node)
 
-        all_node_ports = ironic_cli.port.list(node=node.uuid)
-        leftover_neutron_ports[node.uuid] = []
-
-        for port in all_node_ports:
-            LOG.debug("Port MAC address is {}".format(port.address))
-            neutron_ports = neutron_cli.list_ports(mac_address=port.address)['ports']
-
-            if len(neutron_ports) == 1:
-                LOG.info("node_uuid: {0}: leftover port_id: {1}".format(node.uuid, neutron_ports[0]['id']))
-                leftover_neutron_ports[node.uuid].append(neutron_ports[0]['id'])
- 
-            elif len(neutron_ports) > 1:
-                LOG.error("There is more than on Neutron port with mac {0}".format(port.address))
-                for leftover_port in neutron_ports:
-                    LOG.info("node_uuid: {0}: leftover port_id: {1}".format(node.uuid, leftover_port['id']))
-                    leftover_neutron_ports[node.uuid].append(leftover_port['id'])
-        
-        try:
-            PortsGauge.labels(node.uuid, node.provision_state).set(len(leftover_neutron_ports[node.uuid]))
-        except KeyError as err:
-            LOG.error("Cannot set Ironic Node label err: {0}".format(err))
 
 if __name__ == "__main__":
     """
@@ -121,7 +136,7 @@ if __name__ == "__main__":
         start_http_server(int(PORT_NUMBER), addr='0.0.0.0')
         while True:
             LOG.info("-----------------------Start Query------------------------")
-            query_ironic_vs_neutron_ports(neutron_cli, ironic_cli)
+            start_ironic_nodes_query(neutron_cli, ironic_cli)
             sleep(50)
     except KeyboardInterrupt:
         exit(0)
