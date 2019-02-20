@@ -1,6 +1,8 @@
 import logging
 import os
+from io import StringIO
 import sys
+import re
 
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
@@ -57,4 +59,20 @@ def get_client_auth():
     parser.read_string(cfg.data["neutron.conf"])
     return parser["keystone_authtoken"]
 
+
+def get_rabbitmq_auth():
+    v1 = k8s_client.CoreV1Api()
+    cfg = v1.read_namespaced_config_map("ironic-rabbitmq-bin", "monsoon3")
+    str = cfg.data["rabbitmq-start"]
+    buf = StringIO(str)
+
+    while True:
+        line = buf.readline()
+        if line.find('"rabbitmq"') > 0:
+            user_pw = re.findall(r'\"(.+?)\"',line)
+            return user_pw
+            break
+        if not line:
+            break
+    
 

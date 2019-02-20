@@ -4,3 +4,4 @@ python-ironicclient==2.5.1
 python-dotenv==0.10.1
 kubernetes==v7.0.1
 configparser==3.7.1
+pika==0.13.0
