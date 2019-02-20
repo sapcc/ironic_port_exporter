@@ -68,7 +68,9 @@ if __name__ == "__main__":
 
     rabbit_auth = config.get_rabbitmq_auth()
 
-    n = Notifications(rabbit_auth[0], rabbit_auth[1], 'staging')
+    region = os.environ.get("REGION", "staging")
+
+    n = Notifications(rabbit_auth[0], rabbit_auth[1], region)
     n.setDaemon(True)
     n.start()
     sys.exit(1)
