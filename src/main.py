@@ -75,13 +75,13 @@ if __name__ == "__main__":
         notifications.start()
 
 
-    ports = Ports(setup_openstack_clis())
+    ports = Ports(*setup_openstack_clis())
 
     try:
         start_http_server(int(PORT_NUMBER), addr='0.0.0.0')
         while True:
             LOG.info("-----------------------Start Query------------------------")
-            ports.start_ironic_nodes_query(neutron_cli, ironic_cli)
+            ports.start_ironic_nodes_query()
             sleep(50)
     except KeyboardInterrupt:
         sys.exit(0)
