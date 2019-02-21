@@ -66,7 +66,7 @@ class Ports:
         Do query in Ironic and after in Neutron to find leftover ports
         """
 
-        all_nodes = get_available_ironic_nodes_uuid()
+        all_nodes = self.get_available_ironic_nodes_uuid()
 
         if len(all_nodes) == 0:
             return
