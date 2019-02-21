@@ -14,21 +14,22 @@ LOG = logging.getLogger(__name__)
 class Notifications(Thread):
 
 
-        def __init__(self, user, password, region):
+        def __init__(self, user, password, region, routing_key):
                 Thread.__init__(self)
+                self.routing_key = routing_key
                 credentials = pika.PlainCredentials(user, password)
                 connection = pika.BlockingConnection(pika.ConnectionParameters(
                         host='ironic-rabbitmq.monsoon3.svc.kubernetes.{0}.cloud.sap'.format(region),
                         credentials=credentials))
                 self.channel = connection.channel()
-
+                self.channel.queue_declare(queue='ironic_exporter_notification.{0}'.format(routing_key), auto_delete=True)
                 self.nodes_status = {}
 
-                self.channel.queue_bind(exchange='topic_logs',
-                                queue='ironic_versioned_notifications.info',
-                                routing_key='baremetal.node.*')
+                self.channel.queue_bind(exchange='ironic',
+                                queue='ironic_exporter_notification.{0}'.format(routing_key),
+                                routing_key='ironic_versioned_notifications.{0}'.format(routing_key))
                 self.channel.basic_consume(self._callback,
-                        queue='ironic_versioned_notifications.info',
+                        queue='ironic_exporter_notification.{0}'.format(routing_key),
                         no_ack=True)
 
 
@@ -37,6 +38,8 @@ class Notifications(Thread):
         
 
         def _callback(self, ch, method, properties, body):
+                print(properties)
+                print(method)
                 notification = json.loads(body)
                 msg = json.loads(notification['oslo.message'])
                 try:

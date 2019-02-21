@@ -67,13 +67,12 @@ if __name__ == "__main__":
     setup_prometheus()
 
     rabbit_auth = config.get_rabbitmq_auth()
+    region = os.environ.get("REGION", "qa-de-1")
 
-    region = os.environ.get("REGION", "staging")
-
-    n = Notifications(rabbit_auth[0], rabbit_auth[1], region)
-    n.setDaemon(True)
-    n.start()
-    sys.exit(1)
+    for routing_key in ["info", "error"]:
+        notifications = Notifications(rabbit_auth[0], rabbit_auth[1], region, routing_key)
+        notifications.setDaemon(True)
+        notifications.start()
 
 
     ports = Ports(setup_openstack_clis())
