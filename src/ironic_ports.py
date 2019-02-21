@@ -77,5 +77,5 @@ class Ports:
 
         for node in all_nodes:
             LOG.debug("Ironic Node uuid is {0}".format(node.uuid))
-            set_leftover_ports(node)
-            set_wait_callback_state(node)
+            self.set_leftover_ports(node)
+            self.set_wait_callback_state(node)
