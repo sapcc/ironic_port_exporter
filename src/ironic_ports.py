@@ -29,7 +29,7 @@ class Ports:
         if node.provision_state != 'available':
             LOG.debug("Remove Ironic Node uuid {0}".format(node.uuid))
             try:
-                PortsGauge.labels(node.uuid).set(0)
+                metrics.PortsGauge.labels(node.uuid).set(0)
             except KeyError as err:
                 LOG.error("Cannot set Ironic Node label err: {0}".format(err))
             return
