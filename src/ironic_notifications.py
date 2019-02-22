@@ -42,8 +42,15 @@ class Notifications(Thread):
                         notification = json.loads(body)
                         msg = json.loads(notification['oslo.message'])
                         self._handle_events(msg)
+                        self._set_provision_state(msg)
                 except KeyError as err:
                         LOG.error("Cannot read ironic event json payload: {0}".format(err))
+
+
+        def _set_provision_state(self, msg):
+                provision_state = msg['payload']['ironic_object.data']['provision_state']
+                if provision_state in metrics.Provision_States:
+                        metrics.IronicProvisionState.labels(node_id, node_name).set(metrics.Provision_States[provision_state])
 
         
         def _handle_events(self, msg):
@@ -63,20 +70,17 @@ class Notifications(Thread):
                         self.nodes_status[node_id] = {}
 
                 if event_type[3] != 'error':
-                        LOG.info('ironic_notification_info: {0}: {1} - {2}. provision_state: {3}'.format(node_name, event_type[2], event_type[3], provision_state))
+                        LOG.info('ironic_notification_error: {0}: {1} - {2} - {3}. provision_state: {4}'.format(node_name, event_type[1], event_type[2], event_type[3], provision_state))
                         if event_type[3] == 'start':
                                 self.nodes_status[node_id][event_type[2]] = timestamp
-                                LOG.info(self.nodes_status)
-                        if event_type[3] == 'end':
+                                LOG.debug(self.nodes_status)
+                        if event_type[3] == 'end' or event_type[3] == 'success':
                                 LOG.info(self.nodes_status[node_id])
                                 if event_type[2] in self.nodes_status[node_id]:
-                                        LOG.debug("------------------------------------------------------------")
                                         start_time = datetime.strptime(self.nodes_status[node_id][event_type[2]], '%Y-%m-%d %H:%M:%S.%f')
                                         delta_time = date_time - start_time
-                                        LOG.info(delta_time.seconds)
-                                        metrics.IrionicEventGauge.labels(node_id, node_name, event_type[2]).set(delta_time.seconds)
+                                        event_label = '{0}_{1}'.format([event_type[1], [event_type[2])
+                                        metrics.IrionicEventGauge.labels(node_id, node_name, event_label).set(delta_time.seconds)
                 elif event_type[3] == 'error':
-                        LOG.error('ironic_notification_error: {0}: {1} - {2}. provision_state: {3}'.format(node_name, event_type[2], event_type[3], provision_state))
+                        LOG.error('ironic_notification_error: {0}: {1} - {2} - {3}. provision_state: {4}'.format(node_name, event_type[1], event_type[2], event_type[3], provision_state))
                         metrics.IrionicEventErrorCounter.labels(node_id, node_name).inc()
-
-
