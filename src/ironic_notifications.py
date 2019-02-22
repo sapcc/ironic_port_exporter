@@ -72,6 +72,7 @@ class Notifications(Thread):
                                 LOG.info("-------------END------------------", self.nodes_status[node_id])
                                 LOG.info(self.nodes_status[node_id])
                                 if event_type[2] in self.nodes_status[node_id]:
+                                        LOG.debug("------------------------------------------------------------")
                                         end_time = datetime.strptime(self.nodes_status[node_id][event_type[2]], '%Y-%m-%d %H:%M:%S.%f')
                                         delta_time = end_time - start_time
                                         LOG.info("-------------END------------------", delta_time.seconds)
