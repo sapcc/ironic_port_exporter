@@ -65,13 +65,14 @@ class Notifications(Thread):
                 if event_type[3] != 'error':
                         LOG.info('ironic_notification_info: {0}: {1} - {2}. provision_state: {3}'.format(node_name, event_type[2], event_type[3], provision_state))
                         if event_type[3] == 'start':
+                                LOG.info("-------S T A R T-------------")
                                 self.nodes_status[node_id][event_type[2]] = timestamp
-                                print(self.nodes_status)
+                                LOG.info(self.nodes_status)
                         if event_type[3] == 'end':
                                 if event_type[2] in self.nodes_status[node_id]:
                                         end_time = datetime.strptime(self.nodes_status[node_id][event_type[2]], '%Y-%m-%d %H:%M:%S.%f')
                                         delta_time = end_time - start_time
-                                        print("-------------END------------------", delta_time.seconds)
+                                        LOG.info("-------------END------------------", delta_time.seconds)
                                         metrics.IrionicEventGauge.labels(node_id, node_name, event_type[2]).set(delta_time.seconds)
                 elif event_type[3] == 'error':
                         LOG.error('ironic_notification_error: {0}: {1} - {2}. provision_state: {3}'.format(node_name, event_type[2], event_type[3], provision_state))
