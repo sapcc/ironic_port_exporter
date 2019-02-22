@@ -51,7 +51,7 @@ class Notifications(Thread):
                         event_type = msg['event_type'].split('.')
                         LOG.debug(event_type)
                         timestamp = msg['timestamp']
-                        start_time = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S.%f')
+                        date_time = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S.%f')
                         node_id = msg['payload']['ironic_object.data']['uuid']
                         node_name = msg['payload']['ironic_object.data']['name']
                         provision_state = msg['payload']['ironic_object.data']['provision_state']
@@ -65,17 +65,14 @@ class Notifications(Thread):
                 if event_type[3] != 'error':
                         LOG.info('ironic_notification_info: {0}: {1} - {2}. provision_state: {3}'.format(node_name, event_type[2], event_type[3], provision_state))
                         if event_type[3] == 'start':
-                                LOG.info("-------S T A R T-------------")
                                 self.nodes_status[node_id][event_type[2]] = timestamp
                                 LOG.info(self.nodes_status)
                         if event_type[3] == 'end':
                                 LOG.info(self.nodes_status[node_id])
                                 if event_type[2] in self.nodes_status[node_id]:
                                         LOG.debug("------------------------------------------------------------")
-                                        end_time = datetime.strptime(self.nodes_status[node_id][event_type[2]], '%Y-%m-%d %H:%M:%S.%f')
-                                        delta_time = end_time - start_time
-                                        LOG.info(start_time)
-                                        LOG.info(end_time)
+                                        start_time = datetime.strptime(self.nodes_status[node_id][event_type[2]], '%Y-%m-%d %H:%M:%S.%f')
+                                        delta_time = date_time - start_time
                                         LOG.info(delta_time.seconds)
                                         metrics.IrionicEventGauge.labels(node_id, node_name, event_type[2]).set(delta_time.seconds)
                 elif event_type[3] == 'error':
