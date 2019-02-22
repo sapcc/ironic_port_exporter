@@ -49,6 +49,8 @@ class Notifications(Thread):
 
         def _set_provision_state(self, msg):
                 provision_state = msg['payload']['ironic_object.data']['provision_state']
+                node_id = msg['payload']['ironic_object.data']['uuid']
+                node_name = msg['payload']['ironic_object.data']['name']
                 if provision_state in metrics.Provision_States:
                         metrics.IronicProvisionState.labels(node_id, node_name).set(metrics.Provision_States[provision_state])
 
