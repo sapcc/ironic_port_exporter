@@ -1,10 +1,10 @@
-
 #!/usr/bin/env python
 import pika
 import logging
 import sys
 import json
 from threading import Thread
+from datetime import datetime
 
 import metrics
 
@@ -35,33 +35,44 @@ class Notifications(Thread):
 
         def run(self):
                 self.channel.start_consuming()
-        
+
 
         def _callback(self, ch, method, properties, body):
-                print(properties)
-                print(method)
-                notification = json.loads(body)
-                msg = json.loads(notification['oslo.message'])
                 try:
-                        event_type = msg['event_type'].split('.')
-                        timestamp = msg['timestamp']
-                        node_id = msg['payload']['ironic_object.data']['uuid']
-                        provision_state = msg['payload']['ironic_object.data']['provision_state']
-                        LOG.debug(event_type)
-                        self._handle_events(event_type, timestamp, node_id)
+                        notification = json.loads(body)
+                        msg = json.loads(notification['oslo.message'])
+                        self._handle_events(msg)
                 except KeyError as err:
                         LOG.error("Cannot read ironic event json payload: {0}".format(err))
 
         
-        def _handle_events(self, event_type, time, node_id):
+        def _handle_events(self, msg):
+                try:
+                        event_type = msg['event_type'].split('.')
+                        LOG.debug(event_type)
+                        timestamp = msg['timestamp']
+                        start_time = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S.%f')
+                        node_id = msg['payload']['ironic_object.data']['uuid']
+                        node_name = msg['payload']['ironic_object.data']['name']
+                        provision_state = msg['payload']['ironic_object.data']['provision_state']
+                except KeyError as err:
+                        LOG.error("Cannot read ironic event json payload: {0}".format(err))
+                        return
+
+                if node_id not in self.nodes_status:
+                        self.nodes_status[node_id] = {}
+
                 if event_type[3] != 'error':
-                        LOG.info('Ironic Node {0}: {1} - {2}'.format(node_id, event_type[2], event_type[3]))
-                        #if event_type[3] == 'start':
-                                #metrics.IrionicEventGauge.labels(node_id, event_type[2]).set(1)
+                        LOG.info('ironic_notification_info: {0}: {1} - {2}. provision_state: {3}'.format(node_name, event_type[2], event_type[3], provision_state))
+                        if event_type[3] == 'start':
+                                self.nodes_status[node_id][event_type[2]] = timestamp
                         if event_type[3] == 'end':
-                                metrics.IrionicEventGauge.labels(node_id, event_type[2]).inc()
+                                if event_type[2] in self.nodes_status[node_id]:
+                                        end_time = datetime.strptime(self.nodes_status[node_id][event_type[2]], '%Y-%m-%d %H:%M:%S.%f')
+                                        delta_time = end_time - start_time
+                                        metrics.IrionicEventGauge.labels(node_id, node_name, event_type[2]).set(delta_time)
                 elif event_type[3] == 'error':
-                        LOG.error('Ironic Node {0}: {1} - {2}'.format(node_id, event_type[2], event_type[3]))
-                        metrics.IrionicEventErrorGauge.labels(node_id).inc()
+                        LOG.error('ironic_notification_error: {0}: {1} - {2}. provision_state: {3}'.format(node_name, event_type[2], event_type[3], provision_state))
+                        metrics.IrionicEventErrorGauge.labels(node_id, node_name).inc()
 
 
