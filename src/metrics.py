@@ -15,5 +15,5 @@ Provision_States = {
     "error": -1,
     "deploy failed": -2,
     "clean failed": -3,
-    "wait call-back" -4
+    "wait call-back": -4
 }
