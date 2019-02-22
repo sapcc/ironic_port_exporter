@@ -66,6 +66,7 @@ class Notifications(Thread):
                         LOG.info('ironic_notification_info: {0}: {1} - {2}. provision_state: {3}'.format(node_name, event_type[2], event_type[3], provision_state))
                         if event_type[3] == 'start':
                                 self.nodes_status[node_id][event_type[2]] = timestamp
+                                print(self.nodes_status)
                         if event_type[3] == 'end':
                                 if event_type[2] in self.nodes_status[node_id]:
                                         end_time = datetime.strptime(self.nodes_status[node_id][event_type[2]], '%Y-%m-%d %H:%M:%S.%f')
