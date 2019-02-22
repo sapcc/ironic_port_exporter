@@ -69,7 +69,6 @@ class Notifications(Thread):
                                 self.nodes_status[node_id][event_type[2]] = timestamp
                                 LOG.info(self.nodes_status)
                         if event_type[3] == 'end':
-                                LOG.info("-------------END------------------", self.nodes_status[node_id])
                                 LOG.info(self.nodes_status[node_id])
                                 if event_type[2] in self.nodes_status[node_id]:
                                         LOG.debug("------------------------------------------------------------")
