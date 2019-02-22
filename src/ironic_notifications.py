@@ -75,7 +75,7 @@ class Notifications(Thread):
                                         LOG.debug("------------------------------------------------------------")
                                         end_time = datetime.strptime(self.nodes_status[node_id][event_type[2]], '%Y-%m-%d %H:%M:%S.%f')
                                         delta_time = end_time - start_time
-                                        LOG.info("-------------END------------------", delta_time.seconds)
+                                        LOG.info(delta_time.seconds)
                                         metrics.IrionicEventGauge.labels(node_id, node_name, event_type[2]).set(delta_time.seconds)
                 elif event_type[3] == 'error':
                         LOG.error('ironic_notification_error: {0}: {1} - {2}. provision_state: {3}'.format(node_name, event_type[2], event_type[3], provision_state))
