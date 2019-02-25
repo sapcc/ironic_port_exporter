@@ -61,9 +61,10 @@ class Notifications(Thread):
                         LOG.debug(event_type)
                         timestamp = msg['timestamp']
                         date_time = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S.%f')
-                        node_id = msg['payload']['ironic_object.data']['uuid']
-                        node_name = msg['payload']['ironic_object.data']['name']
-                        provision_state = msg['payload']['ironic_object.data']['provision_state']
+                        data = msg['payload']['ironic_object.data']
+                        node_id = data['uuid']
+                        node_name = data['name']
+                        provision_state = data['provision_state']
                 except KeyError as err:
                         LOG.error("Cannot read ironic event json payload: {0}".format(err))
                         return
@@ -72,7 +73,7 @@ class Notifications(Thread):
                         self.nodes_status[node_id] = {}
 
                 if event_type[3] != 'error':
-                        LOG.info('ironic_notification_error: {0}: {1} - {2} - {3}. provision_state: {4}'.format(node_name, event_type[1], event_type[2], event_type[3], provision_state))
+                        LOG.info('ironic_notification_info: {0}: {1} - {2} - {3}. provision_state: {4}'.format(node_name, event_type[1], event_type[2], event_type[3], provision_state))
                         if event_type[3] == 'start':
                                 self.nodes_status[node_id][event_type[2]] = timestamp
                                 LOG.debug(self.nodes_status)
@@ -84,5 +85,6 @@ class Notifications(Thread):
                                         event_label = '{0}_{1}'.format(event_type[1], event_type[2])
                                         metrics.IrionicEventGauge.labels(node_id, node_name, event_label).set(delta_time.seconds)
                 elif event_type[3] == 'error':
-                        LOG.error('ironic_notification_error: {0}: {1} - {2} - {3}. provision_state: {4}'.format(node_name, event_type[1], event_type[2], event_type[3], provision_state))
+                        target_provision_state = data['target_provision_state']
+                        LOG.error('ironic_notification_error: {0}: {1} - {2} - {3}. provision_state: {4}. target_provision_state:{5}'.format(node_name, event_type[1], event_type[2], event_type[3], provision_state, target_provision_state))
                         metrics.IrionicEventErrorCounter.labels(node_id, node_name).inc()
