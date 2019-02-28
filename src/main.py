@@ -69,10 +69,14 @@ if __name__ == "__main__":
     rabbit_auth = config.get_rabbitmq_auth()
     region = os.environ.get("REGION", "qa-de-1")
 
-    for routing_key in ["info", "error"]:
-        notifications = Notifications(rabbit_auth[0], rabbit_auth[1], region, routing_key)
-        notifications.setDaemon(True)
-        notifications.start()
+
+    notifications_enabled = os.environ.get("NOTIFICATIONS", False)
+
+    if notifications_enabled:
+        for routing_key in ["info", "error"]:
+            notifications = Notifications(rabbit_auth[0], rabbit_auth[1], region, routing_key)
+            notifications.setDaemon(True)
+            notifications.start()
 
 
     ports = Ports(*setup_openstack_clis())
@@ -82,6 +86,6 @@ if __name__ == "__main__":
         while True:
             LOG.info("-----------------------Start Query------------------------")
             ports.start_ironic_nodes_query()
-            sleep(50)
+            sleep(600)
     except KeyboardInterrupt:
         sys.exit(0)
