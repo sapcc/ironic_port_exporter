@@ -5,6 +5,7 @@ import sys
 import json
 from threading import Thread
 from datetime import datetime
+from retry import retry
 
 import metrics
 
@@ -18,23 +19,29 @@ class Notifications(Thread):
                 Thread.__init__(self)
                 self.routing_key = routing_key
                 credentials = pika.PlainCredentials(user, password)
-                connection = pika.BlockingConnection(pika.ConnectionParameters(
+                self.connection = pika.BlockingConnection(pika.ConnectionParameters(
                         host='ironic-rabbitmq.monsoon3.svc.kubernetes.{0}.cloud.sap'.format(region),
                         credentials=credentials))
-                self.channel = connection.channel()
-                self.channel.queue_declare(queue='ironic_exporter_notification.{0}'.format(routing_key), auto_delete=True)
+
+
+        @retry(pika.exceptions.AMQPConnectionError, delay=5, jitter=(1, 3))
+        def run(self):
+                self.channel = self.connection.channel()
+                self.channel.queue_declare(queue='ironic_exporter_notification.{0}'.format(self.routing_key), auto_delete=True)
                 self.nodes_status = {}
 
                 self.channel.queue_bind(exchange='ironic',
-                                queue='ironic_exporter_notification.{0}'.format(routing_key),
-                                routing_key='ironic_versioned_notifications.{0}'.format(routing_key))
+                                queue='ironic_exporter_notification.{0}'.format(self.routing_key),
+                                routing_key='ironic_versioned_notifications.{0}'.format(self.routing_key))
                 self.channel.basic_consume(self._callback,
-                        queue='ironic_exporter_notification.{0}'.format(routing_key),
+                        queue='ironic_exporter_notification.{0}'.format(self.routing_key),
                         no_ack=True)
 
-
-        def run(self):
-                self.channel.start_consuming()
+                try:
+                        self.channel.start_consuming()
+                # Don't recover connections closed by server
+                except pika.exceptions.ConnectionClosedByBroker:
+                        pass
 
 
         def _callback(self, ch, method, properties, body):
@@ -67,6 +74,9 @@ class Notifications(Thread):
                         provision_state = data['provision_state']
                 except KeyError as err:
                         LOG.error("Cannot read ironic event json payload: {0}".format(err))
+                        return
+
+                if node_name is None:
                         return
 
                 if node_id not in self.nodes_status:
