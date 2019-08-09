@@ -45,7 +45,7 @@ class Notifications(Thread):
                         self.channel.basic_consume(
                                 queue=channel_name,
                                 on_message_callback=self._callback,
-                                auto_ack=False
+                                auto_ack=True
                         )
                 except pika.exceptions.ChannelClosed as e:
                         if e.args[0] == 404:
