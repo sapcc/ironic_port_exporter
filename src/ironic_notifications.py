@@ -42,9 +42,11 @@ class Notifications(Thread):
                         self.channel.queue_bind(exchange='ironic',
                                         queue=channel_name,
                                         routing_key='ironic_versioned_notifications.{0}'.format(self.routing_key))
-                        self.channel.basic_consume(self._callback,
+                        self.channel.basic_consume(
                                 queue=channel_name,
-                                no_ack=True)
+                                on_message_callback=self._callback,
+                                no_ack=True
+                        )
                 except pika.exceptions.ChannelClosed as e:
                         if e.args[0] == 404:
                                 LOG.info("channel: {} NOT FOUND".format(channel_name))
