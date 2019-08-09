@@ -56,7 +56,7 @@ class Notifications(Thread):
                         self.channel.stop_consuming()
                         self.connection.close()
                 # Don't recover connections closed by server
-               except pika.exceptions.ConnectionClosedByBroker:
+                except pika.exceptions.ConnectionClosedByBroker:
                         # Uncomment this to make the example not attempt recovery
                         # from server-initiated connection closure, including
                         # when the node is stopped cleanly
