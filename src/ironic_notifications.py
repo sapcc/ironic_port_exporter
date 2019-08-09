@@ -49,7 +49,8 @@ class Notifications(Thread):
                         if e.args[0] == 404:
                                 LOG.info("channel: {} NOT FOUND".format(channel_name))
                                 #No need to retry or start consuming!
-                                pass
+                                return
+                        raise(e)
 
                 try:
                         self.channel.start_consuming()
