@@ -29,7 +29,7 @@ class Notifications(Thread):
         def run(self):
                 self.connection = pika.BlockingConnection(pika.ConnectionParameters(
                         host='ironic-rabbitmq.monsoon3.svc.kubernetes.{0}.cloud.sap'.format(self.region),
-                        credentials=credentials))
+                        credentials=self.credentials))
                 self.channel = self.connection.channel()
                 self.channel.basic_qos(prefetch_count=1)
                 channel_name = 'ironic_versioned_notifications.{}'.format(self.routing_key)
