@@ -24,7 +24,8 @@ class Notifications(Thread):
 
 
 
-        @retry(pika.exceptions.AMQPConnectionError, delay=5, jitter=(1, 3))
+        @retry((pika.exceptions.AMQPConnectionError,
+                pika.exceptions.ConnectionClosedByBroker), delay=5, jitter=(1, 3))
         def run(self):
                 self.connection = pika.BlockingConnection(pika.ConnectionParameters(
                         host='ironic-rabbitmq.monsoon3.svc.kubernetes.{0}.cloud.sap'.format(self.region),
@@ -47,22 +48,20 @@ class Notifications(Thread):
                 except pika.exceptions.ChannelClosed as e:
                         if e.args[0] == 404:
                                 LOG.info("channel: {} NOT FOUND".format(channel_name))
-                                return
-                        continue
+                                #No need to retry or start consuming!
+                                pass
 
                 try:
                         self.channel.start_consuming()
                 except KeyboardInterrupt:
                         self.channel.stop_consuming()
                         self.connection.close()
+                        pass
                 # Don't recover connections closed by server
                 except pika.exceptions.ConnectionClosedByBroker:
-                        # Uncomment this to make the example not attempt recovery
-                        # from server-initiated connection closure, including
-                        # when the node is stopped cleanly
-                        # except pika.exceptions.ConnectionClosedByBroker:
-                        #     pass
-                        continue
+                        LOG.error("ConnectionClosedByBroker: Channel: {}".format(channel_name))
+                        #Retry to connect
+                        raise(e)
 
 
         def _callback(self, ch, method, properties, body):
