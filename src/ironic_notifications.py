@@ -15,33 +15,54 @@ LOG = logging.getLogger(__name__)
 class Notifications(Thread):
 
 
-        def __init__(self, user, password, region, routing_key):
+        def __init__(self, user, password, region, routing_key, use_own_channel = False):
                 Thread.__init__(self)
                 self.routing_key = routing_key
-                credentials = pika.PlainCredentials(user, password)
-                self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                        host='ironic-rabbitmq.monsoon3.svc.kubernetes.{0}.cloud.sap'.format(region),
-                        credentials=credentials))
+                self.use_own_channel = use_own_channel
+                self.region = region
+                self.credentials = pika.PlainCredentials(user, password)
+
 
 
         @retry(pika.exceptions.AMQPConnectionError, delay=5, jitter=(1, 3))
         def run(self):
+                self.connection = pika.BlockingConnection(pika.ConnectionParameters(
+                        host='ironic-rabbitmq.monsoon3.svc.kubernetes.{0}.cloud.sap'.format(self.region),
+                        credentials=credentials))
                 self.channel = self.connection.channel()
-                self.channel.queue_declare(queue='ironic_exporter_notification.{0}'.format(self.routing_key), auto_delete=True)
+                self.channel.basic_qos(prefetch_count=1)
+                channel_name = 'ironic_versioned_notifications.{}'.format(self.routing_key)
+                if self.use_own_channel:
+                        channel_name = 'ironic_exporter_notification.{0}'.format(self.routing_key)
+                        self.channel.queue_declare(queue=channel_name, auto_delete=True)
                 self.nodes_status = {}
 
-                self.channel.queue_bind(exchange='ironic',
-                                queue='ironic_exporter_notification.{0}'.format(self.routing_key),
-                                routing_key='ironic_versioned_notifications.{0}'.format(self.routing_key))
-                self.channel.basic_consume(self._callback,
-                        queue='ironic_exporter_notification.{0}'.format(self.routing_key),
-                        no_ack=True)
+                try:
+                        self.channel.queue_bind(exchange='ironic',
+                                        queue=channel_name,
+                                        routing_key='ironic_versioned_notifications.{0}'.format(self.routing_key))
+                        self.channel.basic_consume(self._callback,
+                                queue=channel_name,
+                                no_ack=True)
+                except pika.exceptions.ChannelClosed as e:
+                        if e.args[0] == 404:
+                                LOG.info("channel: {} NOT FOUND".format(channel_name))
+                                return
+                        continue
 
                 try:
                         self.channel.start_consuming()
+                except KeyboardInterrupt:
+                        self.channel.stop_consuming()
+                        self.connection.close()
                 # Don't recover connections closed by server
-                except pika.exceptions.ConnectionClosedByBroker:
-                        pass
+               except pika.exceptions.ConnectionClosedByBroker:
+                        # Uncomment this to make the example not attempt recovery
+                        # from server-initiated connection closure, including
+                        # when the node is stopped cleanly
+                        # except pika.exceptions.ConnectionClosedByBroker:
+                        #     pass
+                        continue
 
 
         def _callback(self, ch, method, properties, body):
