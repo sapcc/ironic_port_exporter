@@ -61,7 +61,7 @@ class Notifications(Thread):
                         self.connection.close()
                         pass
                 # Don't recover connections closed by server
-                except pika.exceptions.ConnectionClosedByBroker:
+                except pika.exceptions.ConnectionClosedByBroker as e:
                         LOG.error("ConnectionClosedByBroker: Channel: {}".format(channel_name))
                         #Retry to connect
                         raise(e)
