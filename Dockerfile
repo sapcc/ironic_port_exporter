@@ -11,6 +11,7 @@ COPY requirements.txt /requirements.txt
 RUN pip3 install --install-option="--prefix=/install" -r /requirements.txt
 
 FROM base
+LABEL source_repository="https://github.com/sapcc/ironic_exporter"
 COPY --from=builder /install /usr/local
 COPY src /app
 WORKDIR /app
