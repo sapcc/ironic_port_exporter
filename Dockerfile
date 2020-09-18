@@ -8,7 +8,7 @@ RUN python -m pip install --upgrade pip
 RUN mkdir /install
 WORKDIR /install
 COPY requirements.txt /requirements.txt
-RUN pip3 install --install-option="--prefix=/install" -r /requirements.txt
+RUN pip3 install --prefix="/install" -r /requirements.txt
 
 FROM base
 LABEL source_repository="https://github.com/sapcc/ironic_exporter"
