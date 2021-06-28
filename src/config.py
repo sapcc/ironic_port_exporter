@@ -41,12 +41,12 @@ def get_ironic_client():
 
     auth_parser = get_client_auth()
 
-    kwargs = {'os_username': os.environ.get("OS_IRONIC_USERNAME", "ipmi_exporter"),
-              'os_password': os.environ.get("OS_IRONIC_PASSWORD", ""),
-              'os_auth_url': auth_parser['www_authenticate_uri'],
-              'os_project_name': os.environ.get("OS_PROJECT_NAME", "master"),
-              'os_user_domain_name': os.environ.get("OS_USER_DOMAIN_NAME", "Default"),
-              'os_project_domain_name': os.environ.get("OS_PROJECT_DOMAIN_NAME", "ccadmin")}
+    kwargs = {'username': os.environ.get("OS_IRONIC_USERNAME", "ipmi_exporter"),
+              'password': os.environ.get("OS_IRONIC_PASSWORD", ""),
+              'auth_url': auth_parser['www_authenticate_uri'],
+              'project_name': os.environ.get("OS_PROJECT_NAME", "master"),
+              'user_domain_name': os.environ.get("OS_USER_DOMAIN_NAME", "Default"),
+              'project_domain_name': os.environ.get("OS_PROJECT_DOMAIN_NAME", "ccadmin")}
 
  
     return ironic_client.get_client(1, **kwargs)
