@@ -1,4 +1,4 @@
-IMAGE   ?= hub.global.cloud.sap/monsoon/ironic-exporter
+IMAGE   ?=  keppel.eu-de-1.cloud.sap/ccloud/ironic-exporter
 VERSION = $(shell git rev-parse --verify HEAD | head -c 8)
 
 

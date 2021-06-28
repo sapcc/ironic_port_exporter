@@ -29,7 +29,7 @@ def setup_k8s():
     try:
         k8s_config.load_kube_config()
 
-    except IOError:
+    except k8s_config.config.config_exception.ConfigException:
         os.environ['KUBERNETES_SERVICE_HOST'] = os.environ['KUBERNETES_SERVICE_HOST'] or 'kubernetes.default'
         os.environ['KUBERNETES_SERVICE_PORT'] = os.environ['KUBERNETES_SERVICE_PORT'] or 443
         k8s_config.load_incluster_config()
